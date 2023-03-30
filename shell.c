@@ -6,6 +6,7 @@
 
 #include "shell.h"
 
+
 typedef signed long  sh_size_t;
 typedef unsigned long sh_ssize_t;
 
@@ -13,6 +14,9 @@ typedef int (*cmd_function_t)(int argc, char **argv);
 
 struct sh_syscall *_syscall_table_begin  = NULL;
 struct sh_syscall *_syscall_table_end    = NULL;
+
+static sh_bool_t shell_handle_history(struct sh_shell* shell);
+static void shell_push_history(struct sh_shell* shell);
 
 int sh_help(int argc, char **argv)
 {
@@ -289,6 +293,9 @@ __declspec(allocate("FSymTab$z")) const struct sh_syscall __fsym_end =
 };
 #endif
 
+struct sh_shell* shell;
+struct sh_shell _shell;
+
 int shell_system_init(void)
 {
     #ifdef __ARMCC_VERSION  /* ARM C Compiler */
@@ -310,7 +317,7 @@ int shell_system_init(void)
 
      //if (shell)
      //{
-     //    rt_kprintf("finsh shell already init.\n");
+     //    printf("finsh shell already init.\n");
      //    return RT_EOK;
      //}
 
@@ -324,6 +331,8 @@ int shell_system_init(void)
 
      shell_system_function_init(ptr_begin, ptr_end);
 #endif
+
+     shell = &_shell;
     return 0;
 }
 
@@ -339,3 +348,384 @@ struct sh_syscall* sh_syscall_next(struct sh_syscall* call)
 }
 
 #endif /* defined(_MSC_VER) || (defined(__GNUC__) && defined(__x86_64__)) */
+
+
+/*todo*/
+
+
+static void shell_auto_complete(char* prefix);
+
+void shell_task_entry(void* parameter)
+{
+    int ch;
+
+    /* normal is echo mode */
+#ifndef SHELL_ECHO_DISABLE_DEFAULT
+    shell->echo_mode = 1;
+#else
+    shell->echo_mode = 0;
+#endif
+
+
+#ifdef SH_USING_AUTH
+    /* set the default password when the password isn't setting */
+    if (strlen(shell_get_password()) == 0)
+    {
+        if (shell_set_password(SHELL_DEFAULT_PASSWORD) != 0)
+        {
+            printf("shell password set failed.\n");
+        }
+    }
+    /* waiting authenticate success */
+    shell_wait_auth();
+#endif
+
+    printf(_SH_PROMPT);
+
+    while (1)
+    {
+        ch = (int)shell_getchar();
+        if (ch < 0)
+        {
+            continue;
+        }
+
+        /*
+         * handle control key
+         * up key  : 0x1b 0x5b 0x41
+         * down key: 0x1b 0x5b 0x42
+         * right key:0x1b 0x5b 0x43
+         * left key: 0x1b 0x5b 0x44
+         */
+        if (ch == 0x1b)
+        {
+            shell->stat = WAIT_SPEC_KEY;
+            continue;
+        }
+        else if (shell->stat == WAIT_SPEC_KEY)
+        {
+            if (ch == 0x5b)
+            {
+                shell->stat = WAIT_FUNC_KEY;
+                continue;
+            }
+
+            shell->stat = WAIT_NORMAL;
+        }
+        else if (shell->stat == WAIT_FUNC_KEY)
+        {
+            shell->stat = WAIT_NORMAL;
+
+            if (ch == 0x41) /* up key */
+            {
+#ifdef SHELL_USING_HISTORY
+                /* prev history */
+                if (shell->current_history > 0)
+                    shell->current_history--;
+                else
+                {
+                    shell->current_history = 0;
+                    continue;
+                }
+
+                /* copy the history command */
+                memcpy(shell->line, &shell->cmd_history[shell->current_history][0],
+                    SHELL_CMD_SIZE);
+                shell->line_curpos = shell->line_position = (sh_uint16_t)strlen(shell->line);
+                shell_handle_history(shell);
+#endif
+                continue;
+            }
+            else if (ch == 0x42) /* down key */
+            {
+#ifdef SHELL_USING_HISTORY
+                /* next history */
+                if (shell->current_history < shell->history_count - 1)
+                    shell->current_history++;
+                else
+                {
+                    /* set to the end of history */
+                    if (shell->history_count != 0)
+                        shell->current_history = shell->history_count - 1;
+                    else
+                        continue;
+                }
+
+                memcpy(shell->line, &shell->cmd_history[shell->current_history][0],
+                    SHELL_CMD_SIZE);
+                shell->line_curpos = shell->line_position = (sh_uint16_t)strlen(shell->line);
+                shell_handle_history(shell);
+#endif
+                continue;
+            }
+            else if (ch == 0x44) /* left key */
+            {
+                if (shell->line_curpos)
+                {
+                    printf("\b");
+                    shell->line_curpos--;
+                }
+
+                continue;
+            }
+            else if (ch == 0x43) /* right key */
+            {
+                if (shell->line_curpos < shell->line_position)
+                {
+                    printf("%c", shell->line[shell->line_curpos]);
+                    shell->line_curpos++;
+                }
+
+                continue;
+            }
+        }
+
+        /* received null or error */
+        if (ch == '\0' || ch == 0xFF) continue;
+        /* handle tab key */
+        else if (ch == '\t')
+        {
+            int i;
+            /* move the cursor to the beginning of line */
+            for (i = 0; i < shell->line_curpos; i++)
+                printf("\b");
+
+            /* auto complete */
+            shell_auto_complete(&shell->line[0]);
+            /* re-calculate position */
+            shell->line_curpos = shell->line_position = (sh_uint16_t)strlen(shell->line);
+
+            continue;
+        }
+        /* handle backspace key */
+        else if (ch == 0x7f || ch == 0x08)
+        {
+            /* note that shell->line_curpos >= 0 */
+            if (shell->line_curpos == 0)
+                continue;
+
+            shell->line_position--;
+            shell->line_curpos--;
+
+            if (shell->line_position > shell->line_curpos)
+            {
+                int i;
+
+                memmove(&shell->line[shell->line_curpos],
+                    &shell->line[shell->line_curpos + 1],
+                    shell->line_position - shell->line_curpos);
+                shell->line[shell->line_position] = 0;
+
+                printf("\b%s  \b", &shell->line[shell->line_curpos]);
+
+                /* move the cursor to the origin position */
+                for (i = shell->line_curpos; i <= shell->line_position; i++)
+                    printf("\b");
+            }
+            else
+            {
+                printf("\b \b");
+                shell->line[shell->line_position] = 0;
+            }
+
+            continue;
+        }
+
+        /* handle end of line, break */
+        if (ch == '\r' || ch == '\n')
+        {
+#ifdef SHELL_USING_HISTORY
+            shell_push_history(shell);
+#endif
+            if (shell->echo_mode)
+                printf("\n");
+            sh_exec(shell->line, shell->line_position);
+
+            printf(_SH_PROMPT);
+            memset(shell->line, 0, sizeof(shell->line));
+            shell->line_curpos = shell->line_position = 0;
+            continue;
+        }
+
+        /* it's a large line, discard it */
+        if (shell->line_position >= SHELL_CMD_SIZE)
+            shell->line_position = 0;
+
+        /* normal character */
+        if (shell->line_curpos < shell->line_position)
+        {
+            int i;
+
+            memmove(&shell->line[shell->line_curpos + 1],
+                &shell->line[shell->line_curpos],
+                shell->line_position - shell->line_curpos);
+            shell->line[shell->line_curpos] = ch;
+            if (shell->echo_mode)
+                printf("%s", &shell->line[shell->line_curpos]);
+
+            /* move the cursor to new position */
+            for (i = shell->line_curpos; i < shell->line_position; i++)
+                printf("\b");
+        }
+        else
+        {
+            shell->line[shell->line_position] = ch;
+            if (shell->echo_mode)
+                printf("%c", ch);
+        }
+
+        ch = 0;
+        shell->line_position++;
+        shell->line_curpos++;
+        if (shell->line_position >= SHELL_CMD_SIZE)
+        {
+            /* clear command line */
+            shell->line_position = 0;
+            shell->line_curpos = 0;
+        }
+    } /* end of device read */
+}
+
+const char* shell_get_prompt(void)
+{
+    static char shell_prompt[SHELL_CONSOLEBUF_SIZE + 1] = { 0 };
+
+    /* check prompt mode */
+    if (!shell->prompt_mode)
+    {
+        shell_prompt[0] = '\0';
+        return shell_prompt;
+    }
+
+    strcpy(shell_prompt, _SH_PROMPT);
+
+    strcat(shell_prompt, ">");
+
+    return shell_prompt;
+}
+
+sh_uint32_t shell_get_prompt_mode(void)
+{
+    assert(shell != NULL);
+    return shell->prompt_mode;
+}
+
+void shell_set_prompt_mode(sh_uint32_t prompt_mode)
+{
+    assert(shell != NULL);
+    shell->prompt_mode = prompt_mode;
+}
+
+int shell_getchar(void) //TODO
+{
+    char ch = 0;
+
+    extern int __get_char(void);
+
+    return __get_char();
+}
+
+void shell_set_echo(sh_uint32_t echo)
+{
+    assert(shell != NULL);
+    shell->echo_mode = (sh_uint32_t)echo;
+}
+sh_uint32_t shell_get_echo()
+{
+    assert(shell != NULL);
+
+    return shell->echo_mode;
+}
+
+#ifdef SH_USING_AUTH
+
+int shell_set_password(const char* password)
+{
+    
+
+    return 0;
+}
+
+/**
+ * get the finsh password
+ *
+ * @return password
+ */
+const char* shell_get_password(void)
+{
+    return shell->password;
+}
+
+static void shell_wait_auth(void)
+{
+    
+}
+#endif
+
+static void shell_auto_complete(char* prefix)
+{
+    printf("\n");
+    sh_auto_complete(prefix);
+
+    printf("%s%s", _SH_PROMPT, prefix);
+}
+
+#ifdef SHELL_USING_HISTORY
+static sh_bool_t shell_handle_history(struct sh_shell* shell)
+{
+#if defined(_WIN32)
+    int i;
+    printf("\r");
+
+    for (i = 0; i <= 60; i++)
+        putchar(' ');
+    printf("\r");
+
+#else
+    printf("\033[2K\r");
+#endif
+    printf("%s%s", _SH_PROMPT, shell->line);
+    return sh_false;
+}
+
+static void shell_push_history(struct sh_shell* shell)
+{
+    if (shell->line_position != 0)
+    {
+        /* push history */
+        if (shell->history_count >= SHELL_HISTORY_LINES)
+        {
+            /* if current cmd is same as last cmd, don't push */
+            if (memcmp(&shell->cmd_history[SHELL_HISTORY_LINES - 1], shell->line, SHELL_CMD_SIZE))
+            {
+                /* move history */
+                int index;
+                for (index = 0; index < SHELL_HISTORY_LINES - 1; index++)
+                {
+                    memcpy(&shell->cmd_history[index][0],
+                        &shell->cmd_history[index + 1][0], SHELL_CMD_SIZE);
+                }
+                memset(&shell->cmd_history[index][0], 0, SHELL_CMD_SIZE);
+                memcpy(&shell->cmd_history[index][0], shell->line, shell->line_position);
+
+                /* it's the maximum history */
+                shell->history_count = SHELL_HISTORY_LINES;
+            }
+        }
+        else
+        {
+            /* if current cmd is same as last cmd, don't push */
+            if (shell->history_count == 0 || memcmp(&shell->cmd_history[shell->history_count - 1], shell->line, SHELL_CMD_SIZE))
+            {
+                shell->current_history = shell->history_count;
+                memset(&shell->cmd_history[shell->history_count][0], 0, SHELL_CMD_SIZE);
+                memcpy(&shell->cmd_history[shell->history_count][0], shell->line, shell->line_position);
+
+                /* increase count and set current history position */
+                shell->history_count++;
+            }
+        }
+    }
+    shell->current_history = shell->history_count;
+}
+#endif

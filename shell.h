@@ -1,6 +1,8 @@
 #ifndef __SHELL_H__
 #define __SHELL_H__
 
+#include "shell_config.h"
+
 typedef long (*syscall_func)(void);
 
 #ifdef _MSC_VER
@@ -67,5 +69,51 @@ extern struct sh_syscall *_syscall_table_begin, *_syscall_table_end;
 struct sh_syscall *sh_syscall_lookup(const char *name);
 
 int shell_system_init(void);
+
+/*todo*/
+
+#define sh_uint8_t unsigned char 
+#define sh_uint16_t unsigned short 
+#define sh_uint32_t unsigned int 
+#ifdef _MSC_VER
+    #include <stdbool.h>
+    #define sh_bool_t   bool
+    #define sh_true     true
+    #define sh_false    false
+#endif
+
+enum input_stat
+{
+    WAIT_NORMAL,
+    WAIT_SPEC_KEY,
+    WAIT_FUNC_KEY,
+};
+
+struct sh_shell
+{
+    char rx_sem;
+
+    enum input_stat stat;
+
+    sh_uint8_t echo_mode : 1;
+    sh_uint8_t prompt_mode : 1;
+
+#ifdef SHELL_USING_HISTORY
+    sh_uint16_t current_history;
+    sh_uint16_t history_count;
+
+    char cmd_history[SHELL_HISTORY_LINES][SHELL_CMD_SIZE];
+#endif
+
+    char line[SHELL_CMD_SIZE + 1];
+    sh_uint16_t line_position;
+    sh_uint16_t line_curpos;
+
+#ifdef SH_USING_AUTH
+    char password[FINSH_PASSWORD_MAX];
+#endif
+};
+
+#define SHELL_PROMPT        shell_get_prompt()
 
 #endif
