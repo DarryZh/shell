@@ -269,6 +269,26 @@ void shell_system_function_init(const void *begin, const void *end)
     _syscall_table_end = (struct sh_syscall *) end;
 }
 
+#ifdef _MSC_VER
+#pragma section("FSymTab$a", read)
+const char __fsym_begin_name[] = "__start";
+const char __fsym_begin_desc[] = "begin of finsh";
+__declspec(allocate("FSymTab$a")) const struct sh_syscall __fsym_begin =
+{
+    __fsym_begin_name,
+    NULL
+};
+
+#pragma section("FSymTab$z", read)
+const char __fsym_end_name[] = "__end";
+const char __fsym_end_desc[] = "end of finsh";
+__declspec(allocate("FSymTab$z")) const struct sh_syscall __fsym_end =
+{
+    __fsym_end_name,
+    NULL
+};
+#endif
+
 int shell_system_init(void)
 {
     #ifdef __ARMCC_VERSION  /* ARM C Compiler */
@@ -286,23 +306,36 @@ int shell_system_init(void)
 #elif defined(__ADSPBLACKFIN__) /* for VisualDSP++ Compiler */
     shell_system_function_init(&__fsymtab_start, &__fsymtab_end);
 #elif defined(_MSC_VER)
-    // unsigned int *ptr_begin, *ptr_end;
+     unsigned int *ptr_begin, *ptr_end;
 
-    // if (shell)
-    // {
-    //     rt_kprintf("finsh shell already init.\n");
-    //     return RT_EOK;
-    // }
+     //if (shell)
+     //{
+     //    rt_kprintf("finsh shell already init.\n");
+     //    return RT_EOK;
+     //}
 
-    // ptr_begin = (unsigned int *)&__fsym_begin;
-    // ptr_begin += (sizeof(struct finsh_syscall) / sizeof(unsigned int));
-    // while (*ptr_begin == 0) ptr_begin ++;
+     ptr_begin = (unsigned int *)&__fsym_begin;
+     ptr_begin += (sizeof(struct sh_syscall) / sizeof(unsigned int));
+     while (*ptr_begin == 0) ptr_begin ++;
 
-    // ptr_end = (unsigned int *) &__fsym_end;
-    // ptr_end --;
-    // while (*ptr_end == 0) ptr_end --;
+     ptr_end = (unsigned int *) &__fsym_end;
+     ptr_end --;
+     while (*ptr_end == 0) ptr_end --;
 
-    // shell_system_function_init(ptr_begin, ptr_end);
+     shell_system_function_init(ptr_begin, ptr_end);
 #endif
     return 0;
 }
+
+#if defined(_MSC_VER) || (defined(__GNUC__) && defined(__x86_64__))
+struct sh_syscall* sh_syscall_next(struct sh_syscall* call)
+{
+    unsigned int* ptr;
+    ptr = (unsigned int*)(call + 1);
+    while ((*ptr == 0) && ((unsigned int*)ptr < (unsigned int*)_syscall_table_end))
+        ptr++;
+
+    return (struct sh_syscall*)ptr;
+}
+
+#endif /* defined(_MSC_VER) || (defined(__GNUC__) && defined(__x86_64__)) */
