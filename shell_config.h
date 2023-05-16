@@ -1,7 +1,9 @@
 #ifndef __SHELL_CONFIG_H__
 #define __SHELL_CONFIG_H__
 
-#define _SH_PROMPT "sh >"
+#define _SH_PROMPT "$"
+
+#define SH_ARG_MAX  6
 
 #define SHELL_CONSOLEBUF_SIZE  128
 

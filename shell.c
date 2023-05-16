@@ -2,8 +2,6 @@
 #include <string.h>
 #include <assert.h>
 
-#define SH_ARG_MAX  6
-
 #include "shell.h"
 
 
