@@ -1,85 +1,45 @@
 #ifndef __SHELL_H__
 #define __SHELL_H__
 
+#include "finsh.h"
 #include "shell_config.h"
 
-typedef long (*syscall_func)(void);
-
-#ifdef _MSC_VER
-#pragma section("FSymTab$f",read)
-#endif /* _MSC_VER */
-
-#ifdef _MSC_VER
-#define SHELL_FUNCTION_EXPORT_CMD(name, cmd, desc)      \
-                const char __fsym_##cmd##_name[] = #cmd;            \
-                __declspec(allocate("FSymTab$f"))                   \
-                const struct sh_syscall __fsym_##cmd =           \
-                {                           \
-                    __fsym_##cmd##_name,    \
-                    (syscall_func)&name     \
-                };
-#pragma comment(linker, "/merge:FSymTab=mytext")
-
-#else
-#define SHELL_FUNCTION_EXPORT_CMD(name, cmd, desc)                                  \
-                const char __fsym_##cmd##_name[] __attribute__((section(".rodata.name"))) = #cmd;    \
-                __attribute__((used)) const struct sh_syscall __fsym_##cmd __attribute__((section("FSymTab")))= \
-                {                           \
-                    __fsym_##cmd##_name,    \
-                    (syscall_func)&name     \
-                };
+#ifndef FINSH_THREAD_PRIORITY
+    #define FINSH_THREAD_PRIORITY 20
+#endif
+#ifndef FINSH_THREAD_STACK_SIZE
+    #define FINSH_THREAD_STACK_SIZE 2048
+#endif
+#ifndef FINSH_CMD_SIZE
+    #define FINSH_CMD_SIZE      80
 #endif
 
-#define SHELL_FUNCTION_EXPORT(name, desc)
+#define FINSH_OPTION_ECHO   0x01
 
-#define SHELL_FUNCTION_EXPORT_ALIAS(name, alias, desc)
+#define FINSH_PROMPT        finsh_get_prompt()
+const char *finsh_get_prompt(void);
+int finsh_set_prompt(const char *prompt);
 
-#define SHELL_CMD_EXPORT(command, desc)   \
-    SHELL_FUNCTION_EXPORT_CMD(command, command, desc)
-
-#define SHELL_CMD_EXPORT_ALIAS(command, alias, desc)  \
-    SHELL_FUNCTION_EXPORT_CMD(command, alias, desc)
-
-/* system call table */
-struct sh_syscall
-{
-    const char     *name;       /* the name of system call */
-
-    syscall_func func;      /* the function address of system call */
-};
-
-/* system call item */
-struct sh_syscall_item
-{
-    struct sh_syscall_item *next;    /* next item */
-    struct sh_syscall syscall;       /* syscall */
-};
-
-extern struct sh_syscall_item *global_syscall_list;
-extern struct sh_syscall *_syscall_table_begin, *_syscall_table_end;
-
-#if defined(_MSC_VER) || (defined(__GNUC__) && defined(__x86_64__))
-    struct sh_syscall* sh_syscall_next(struct sh_syscall* call);
-    #define SH_NEXT_SYSCALL(index)  index=sh_syscall_next(index)
-#else
-    #define SH_NEXT_SYSCALL(index)  index++
+#ifdef FINSH_USING_HISTORY
+    #ifndef FINSH_HISTORY_LINES
+        #define FINSH_HISTORY_LINES 5
+    #endif
 #endif
 
-/* find out system call, which should be implemented in user program */
-struct sh_syscall *sh_syscall_lookup(const char *name);
+#ifdef FINSH_USING_AUTH
+    #ifndef FINSH_PASSWORD_MAX
+        #define FINSH_PASSWORD_MAX 32
+    #endif
+    #ifndef FINSH_PASSWORD_MIN
+        #define FINSH_PASSWORD_MIN 3
+    #endif
+    #ifndef FINSH_DEFAULT_PASSWORD
+        #define FINSH_DEFAULT_PASSWORD "password"
+    #endif
+#endif /* FINSH_USING_AUTH */
 
-int shell_system_init(void);
-
-/*todo*/
-
-#define sh_uint8_t unsigned char 
-#define sh_uint16_t unsigned short 
-#define sh_uint32_t unsigned int 
-#ifdef _MSC_VER
-    #include <stdbool.h>
-    #define sh_bool_t   bool
-    #define sh_true     true
-    #define sh_false    false
+#ifndef FINSH_THREAD_NAME
+    #define FINSH_THREAD_NAME   "tshell"
 #endif
 
 enum input_stat
@@ -88,32 +48,48 @@ enum input_stat
     WAIT_SPEC_KEY,
     WAIT_FUNC_KEY,
 };
-
-struct sh_shell
+struct finsh_shell
 {
-    char rx_sem;
+    // struct rt_semaphore rx_sem;      //TODO
 
     enum input_stat stat;
 
-    sh_uint8_t echo_mode : 1;
-    sh_uint8_t prompt_mode : 1;
+    rt_uint8_t echo_mode: 1;
+    rt_uint8_t prompt_mode: 1;
 
-#ifdef SHELL_USING_HISTORY
-    sh_uint16_t current_history;
-    sh_uint16_t history_count;
+#ifdef FINSH_USING_HISTORY
+    rt_uint16_t current_history;
+    rt_uint16_t history_count;
 
-    char cmd_history[SHELL_HISTORY_LINES][SHELL_CMD_SIZE];
+    char cmd_history[FINSH_HISTORY_LINES][FINSH_CMD_SIZE];
 #endif
 
-    char line[SHELL_CMD_SIZE + 1];
-    sh_uint16_t line_position;
-    sh_uint16_t line_curpos;
+    char line[FINSH_CMD_SIZE + 1];
+    rt_uint16_t line_position;
+    rt_uint16_t line_curpos;
 
-#ifdef SH_USING_AUTH
+#if !defined(RT_USING_POSIX_STDIO) && defined(RT_USING_DEVICE)
+    rt_device_t device;
+#endif
+
+#ifdef FINSH_USING_AUTH
     char password[FINSH_PASSWORD_MAX];
 #endif
 };
 
-#define SHELL_PROMPT        shell_get_prompt()
+void finsh_set_echo(rt_uint32_t echo);
+rt_uint32_t finsh_get_echo(void);
+
+int finsh_system_init(void);
+const char *finsh_get_device(void);
+int finsh_getchar(void);
+
+rt_uint32_t finsh_get_prompt_mode(void);
+void finsh_set_prompt_mode(rt_uint32_t prompt_mode);
+
+#ifdef FINSH_USING_AUTH
+    rt_err_t finsh_set_password(const char *password);
+    const char *finsh_get_password(void);
+#endif
 
 #endif

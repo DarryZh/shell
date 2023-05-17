@@ -1,22 +1,34 @@
 #ifndef __SHELL_CONFIG_H__
 #define __SHELL_CONFIG_H__
 
-#define _SH_PROMPT "$"
+#define RT_ALIGN_SIZE	8
 
-#define SH_ARG_MAX  6
+#define RT_USING_FINSH
 
-#define SHELL_CONSOLEBUF_SIZE  128
+#define RT_USING_CONSOLE
 
-#ifndef SHELL_CMD_SIZE
-	#define SHELL_CMD_SIZE      80
-#endif
+#define RT_CONSOLEBUF_SIZE	128
 
-#define SHELL_USING_HISTORY		
-#ifdef SHELL_USING_HISTORY
-	#ifndef SHELL_HISTORY_LINES
-		#define SHELL_HISTORY_LINES 5
-	#endif
-#endif
+#define FINSH_USING_SYMTAB
 
+#define FINSH_USING_HISTORY
+
+#define FINSH_USING_AUTH
+
+#define RT_ASSERT(EX)  
+
+#define rt_strlen   strlen
+
+#define rt_strncpy  strncpy
+
+#define rt_kprintf(...)  printf(__VA_ARGS__)
+
+#define rt_strncmp  strncmp
+
+#define rt_memset  memset
+
+#define rt_memcpy   memcpy
+
+#define rt_memmove   memmove
 
 #endif
