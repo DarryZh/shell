@@ -18,6 +18,8 @@ add_executable(test_main
     ${SRC_LIST}
 )
 
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T ${CMAKE_SOURCE_DIR}/demos/linux/link.lds")
+
 # target_link_libraries( test_main
     # shell
 # )

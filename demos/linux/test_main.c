@@ -17,8 +17,9 @@ int main(void)
 	return 0;
 }	
 
-void test_shell(void)
+void test_shell_helloworld(void)
 {	
-	printf("test shell succ!\n");
+	printf("test shell helloworld!\n");
 }
-MSH_CMD_EXPORT(test_shell, test_shell);
+MSH_CMD_EXPORT(test_shell_helloworld, test_shell_helloworld);
+
