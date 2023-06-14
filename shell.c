@@ -67,7 +67,7 @@ int finsh_set_prompt(const char *prompt)
 }
 #endif /* RT_USING_HEAP */
 
-#define _MSH_PROMPT "msh "
+#define _MSH_PROMPT "sh "
 
 const char *finsh_get_prompt(void)
 {
@@ -166,7 +166,7 @@ int finsh_getchar(void)
     return ch;
 #endif /* RT_USING_POSIX_STDIO */
 #else
-    extern char rt_hw_console_getchar(void);
+    extern int rt_hw_console_getchar(void);
     return rt_hw_console_getchar();
 #endif /* RT_USING_DEVICE */
 }
@@ -279,7 +279,6 @@ static void finsh_wait_auth(void)
     rt_size_t cur_pos = 0;
     /* password not set */
     if (rt_strlen(finsh_get_password()) == 0) return;
-
     while (1)
     {
         rt_kprintf("Password for login: ");
@@ -727,7 +726,7 @@ int finsh_system_init(void)
     //                        finsh_thread_entry, RT_NULL,
     //                        FINSH_THREAD_STACK_SIZE, FINSH_THREAD_PRIORITY, 10);
 #else
-    // shell = &_shell;
+    shell = &_shell;
     // tid = &finsh_thread;
     // result = rt_thread_init(&finsh_thread,
     //                         FINSH_THREAD_NAME,

@@ -19,6 +19,9 @@ add_executable(test_main
 )
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T ${CMAKE_SOURCE_DIR}/demos/linux/link.lds")
+set(CMAKE_CXX_FLAGS   "-std=c++11")             # c++11
+set(CMAKE_CXX_FLAGS   "-g")                     # 调试信息
+set(CMAKE_CXX_FLAGS   "-Wall")                  # 开启所有警告
 
 # target_link_libraries( test_main
     # shell

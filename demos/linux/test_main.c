@@ -12,6 +12,7 @@ int main(void)
 	finsh_system_init();
 	while (1) 
 	{
+		// printf("test shell helloworld!\n");
 		finsh_thread_entry(NULL);
 	}
 	return 0;
