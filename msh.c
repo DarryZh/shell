@@ -2,7 +2,7 @@
 #include <string.h>
 #include "shell_config.h"
 
-#ifdef RT_USING_FINSH
+#ifdef SH_USING_FINSH
 
 #ifndef FINSH_ARG_MAX
 #define FINSH_ARG_MAX    8
@@ -20,7 +20,7 @@ typedef int (*cmd_function_t)(int argc, char **argv);
 
 int msh_help(int argc, char **argv)
 {
-    rt_kprintf("shell commands:\n");
+    sh_kprintf("shell commands:\n");
     {
         struct finsh_syscall *index;
 
@@ -29,24 +29,24 @@ int msh_help(int argc, char **argv)
                 FINSH_NEXT_SYSCALL(index))
         {
 #if defined(FINSH_USING_DESCRIPTION) && defined(FINSH_USING_SYMTAB)
-            rt_kprintf("%-16s - %s\n", index->name, index->desc);
+            sh_kprintf("%-16s - %s\n", index->name, index->desc);
 #else
-            rt_kprintf("%s ", index->name);
+            sh_kprintf("%s ", index->name);
 #endif
         }
     }
-    rt_kprintf("\n");
+    sh_kprintf("\n");
 
     return 0;
 }
-MSH_CMD_EXPORT_ALIAS(msh_help, help, RT-Thread shell help.);
+SHELL_CMD_EXPORT_ALIAS(msh_help, help, RT-Thread shell help.);
 
-static int msh_split(char *cmd, rt_size_t length, char *argv[FINSH_ARG_MAX])
+static int msh_split(char *cmd, sh_size_t length, char *argv[FINSH_ARG_MAX])
 {
     char *ptr;
-    rt_size_t position;
-    rt_size_t argc;
-    rt_size_t i;
+    sh_size_t position;
+    sh_size_t argc;
+    sh_size_t i;
 
     ptr = cmd;
     position = 0;
@@ -64,12 +64,12 @@ static int msh_split(char *cmd, rt_size_t length, char *argv[FINSH_ARG_MAX])
 
         if (argc >= FINSH_ARG_MAX)
         {
-            rt_kprintf("Too many args ! We only Use:\n");
+            sh_kprintf("Too many args ! We only Use:\n");
             for (i = 0; i < argc; i++)
             {
-                rt_kprintf("%s ", argv[i]);
+                sh_kprintf("%s ", argv[i]);
             }
-            rt_kprintf("\n");
+            sh_kprintf("\n");
             break;
         }
 
@@ -123,7 +123,7 @@ static int msh_split(char *cmd, rt_size_t length, char *argv[FINSH_ARG_MAX])
 static cmd_function_t msh_get_cmd(char *cmd, int size)
 {
     struct finsh_syscall *index;
-    cmd_function_t cmd_func = RT_NULL;
+    cmd_function_t cmd_func = SH_NULL;
 
     for (index = _syscall_table_begin;
             index < _syscall_table_end;
@@ -140,38 +140,38 @@ static cmd_function_t msh_get_cmd(char *cmd, int size)
     return cmd_func;
 }
 
-static int _msh_exec_cmd(char *cmd, rt_size_t length, int *retp)
+static int _msh_exec_cmd(char *cmd, sh_size_t length, int *retp)
 {
     int argc;
-    rt_size_t cmd0_size = 0;
+    sh_size_t cmd0_size = 0;
     cmd_function_t cmd_func;
     char *argv[FINSH_ARG_MAX];
 
-    RT_ASSERT(cmd);
-    RT_ASSERT(retp);
+    SH_ASSERT(cmd);
+    SH_ASSERT(retp);
 
     /* find the size of first command */
     while ((cmd[cmd0_size] != ' ' && cmd[cmd0_size] != '\t') && cmd0_size < length)
         cmd0_size ++;
     if (cmd0_size == 0)
-        return -RT_ERROR;
+        return -SH_ERROR;
 
     cmd_func = msh_get_cmd(cmd, cmd0_size);
-    if (cmd_func == RT_NULL)
-        return -RT_ERROR;
+    if (cmd_func == SH_NULL)
+        return -SH_ERROR;
 
     /* split arguments */
-    rt_memset(argv, 0x00, sizeof(argv));
+    sh_memset(argv, 0x00, sizeof(argv));
     argc = msh_split(cmd, length, argv);
     if (argc == 0)
-        return -RT_ERROR;
+        return -SH_ERROR;
 
     /* exec this command */
     *retp = cmd_func(argc, argv);
     return 0;
 }
 
-int msh_exec(char *cmd, rt_size_t length)
+int msh_exec(char *cmd, sh_size_t length)
 {
     int cmd_ret;
 
@@ -213,7 +213,7 @@ int msh_exec(char *cmd, rt_size_t length)
         }
         *tcmd = '\0';
     }
-    rt_kprintf("%s: command not found.\n", cmd);
+    sh_kprintf("%s: command not found.\n", cmd);
     return -1;
 }
 
@@ -233,25 +233,25 @@ static int str_common(const char *str1, const char *str2)
 #ifdef DFS_USING_POSIX
 void msh_auto_complete_path(char *path)
 {
-    DIR *dir = RT_NULL;
-    struct dirent *dirent = RT_NULL;
+    DIR *dir = SH_NULL;
+    struct dirent *dirent = SH_NULL;
     char *full_path, *ptr, *index;
 
     if (!path)
         return;
 
-    full_path = (char *)rt_malloc(256);
-    if (full_path == RT_NULL) return; /* out of memory */
+    full_path = (char *)sh_malloc(256);
+    if (full_path == SH_NULL) return; /* out of memory */
 
     if (*path != '/')
     {
         getcwd(full_path, 256);
-        if (full_path[rt_strlen(full_path) - 1]  != '/')
+        if (full_path[sh_strlen(full_path) - 1]  != '/')
             strcat(full_path, "/");
     }
     else *full_path = '\0';
 
-    index = RT_NULL;
+    index = SH_NULL;
     ptr = path;
     for (;;)
     {
@@ -260,9 +260,9 @@ void msh_auto_complete_path(char *path)
 
         ptr ++;
     }
-    if (index == RT_NULL) index = path;
+    if (index == SH_NULL) index = path;
 
-    if (index != RT_NULL)
+    if (index != SH_NULL)
     {
         char *dest = index;
 
@@ -275,9 +275,9 @@ void msh_auto_complete_path(char *path)
         *ptr = '\0';
 
         dir = opendir(full_path);
-        if (dir == RT_NULL) /* open directory failed! */
+        if (dir == SH_NULL) /* open directory failed! */
         {
-            rt_free(full_path);
+            sh_free(full_path);
             return;
         }
 
@@ -291,29 +291,29 @@ void msh_auto_complete_path(char *path)
         for (;;)
         {
             dirent = readdir(dir);
-            if (dirent == RT_NULL) break;
+            if (dirent == SH_NULL) break;
 
-            rt_kprintf("%s\n", dirent->d_name);
+            sh_kprintf("%s\n", dirent->d_name);
         }
     }
     else
     {
         int multi = 0;
-        rt_size_t length, min_length;
+        sh_size_t length, min_length;
 
         min_length = 0;
         for (;;)
         {
             dirent = readdir(dir);
-            if (dirent == RT_NULL) break;
+            if (dirent == SH_NULL) break;
 
             /* matched the prefix string */
-            if (strncmp(index, dirent->d_name, rt_strlen(index)) == 0)
+            if (strncmp(index, dirent->d_name, sh_strlen(index)) == 0)
             {
                 multi ++;
                 if (min_length == 0)
                 {
-                    min_length = rt_strlen(dirent->d_name);
+                    min_length = sh_strlen(dirent->d_name);
                     /* save dirent name */
                     strcpy(full_path, dirent->d_name);
                 }
@@ -337,15 +337,15 @@ void msh_auto_complete_path(char *path)
                 for (;;)
                 {
                     dirent = readdir(dir);
-                    if (dirent == RT_NULL) break;
+                    if (dirent == SH_NULL) break;
 
-                    if (strncmp(index, dirent->d_name, rt_strlen(index)) == 0)
-                        rt_kprintf("%s\n", dirent->d_name);
+                    if (strncmp(index, dirent->d_name, sh_strlen(index)) == 0)
+                        sh_kprintf("%s\n", dirent->d_name);
                 }
             }
 
             length = index - path;
-            rt_memcpy(index, full_path, min_length);
+            sh_memcpy(index, full_path, min_length);
             path[length + min_length] = '\0';
 
             /* try to locate folder */
@@ -361,7 +361,7 @@ void msh_auto_complete_path(char *path)
     }
 
     closedir(dir);
-    rt_free(full_path);
+    sh_free(full_path);
 }
 #endif /* DFS_USING_POSIX */
 
@@ -372,11 +372,11 @@ void msh_auto_complete(char *prefix)
     struct finsh_syscall *index;
 
     min_length = 0;
-    name_ptr = RT_NULL;
+    name_ptr = SH_NULL;
 
     if (*prefix == '\0')
     {
-        msh_help(0, RT_NULL);
+        msh_help(0, SH_NULL);
         return;
     }
 
@@ -385,7 +385,7 @@ void msh_auto_complete(char *prefix)
     {
         char *ptr;
 
-        ptr = prefix + rt_strlen(prefix);
+        ptr = prefix + sh_strlen(prefix);
         while (ptr != prefix)
         {
             if (*ptr == ' ')
@@ -419,7 +419,7 @@ void msh_auto_complete(char *prefix)
                 if (length < min_length)
                     min_length = length;
 
-                rt_kprintf("%s\n", cmd_name);
+                sh_kprintf("%s\n", cmd_name);
             }
         }
     }
@@ -427,9 +427,9 @@ void msh_auto_complete(char *prefix)
     /* auto complete string */
     if (name_ptr != NULL)
     {
-        rt_strncpy(prefix, name_ptr, min_length);
+        sh_strncpy(prefix, name_ptr, min_length);
     }
 
     return ;
 }
-#endif /* RT_USING_FINSH */
+#endif /* SH_USING_FINSH */

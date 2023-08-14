@@ -39,7 +39,7 @@ int finsh_set_prompt(const char *prompt);
 #endif /* FINSH_USING_AUTH */
 
 #ifndef FINSH_THREAD_NAME
-    #define FINSH_THREAD_NAME   "tshell"
+    #define FINSH_THREAD_NAME   "shell"
 #endif
 
 enum input_stat
@@ -50,26 +50,26 @@ enum input_stat
 };
 struct finsh_shell
 {
-    // struct rt_semaphore rx_sem;      //TODO
+    // struct sh_semaphore rx_sem;      //TODO
 
     enum input_stat stat;
 
-    rt_uint8_t echo_mode: 1;
-    rt_uint8_t prompt_mode: 1;
+    sh_uint8_t echo_mode: 1;
+    sh_uint8_t prompt_mode: 1;
 
 #ifdef FINSH_USING_HISTORY
-    rt_uint16_t current_history;
-    rt_uint16_t history_count;
+    sh_uint16_t current_history;
+    sh_uint16_t history_count;
 
     char cmd_history[FINSH_HISTORY_LINES][FINSH_CMD_SIZE];
 #endif
 
     char line[FINSH_CMD_SIZE + 1];
-    rt_uint16_t line_position;
-    rt_uint16_t line_curpos;
+    sh_uint16_t line_position;
+    sh_uint16_t line_curpos;
 
-#if !defined(RT_USING_POSIX_STDIO) && defined(RT_USING_DEVICE)
-    rt_device_t device;
+#if !defined(SH_USING_POSIX_STDIO) && defined(SH_USING_DEVICE)
+    sh_device_t device;
 #endif
 
 #ifdef FINSH_USING_AUTH
@@ -77,18 +77,19 @@ struct finsh_shell
 #endif
 };
 
-void finsh_set_echo(rt_uint32_t echo);
-rt_uint32_t finsh_get_echo(void);
+void finsh_set_echo(sh_uint32_t echo);
+sh_uint32_t finsh_get_echo(void);
 
-int finsh_system_init(void);
+int shell_system_init(void);
+void shell_thread_entry(void *parameter);
 const char *finsh_get_device(void);
 int finsh_getchar(void);
 
-rt_uint32_t finsh_get_prompt_mode(void);
-void finsh_set_prompt_mode(rt_uint32_t prompt_mode);
+sh_uint32_t finsh_get_prompt_mode(void);
+void finsh_set_prompt_mode(sh_uint32_t prompt_mode);
 
 #ifdef FINSH_USING_AUTH
-    rt_err_t finsh_set_password(const char *password);
+    sh_err_t finsh_set_password(const char *password);
     const char *finsh_get_password(void);
 #endif
 

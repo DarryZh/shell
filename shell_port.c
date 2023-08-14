@@ -1,8 +1,13 @@
 #include <stdio.h>
+#include <shell_def.h>
 
-int rt_hw_console_getchar(void)
+// please impl user port here or in other file
+sh_weak int __shell_getchar(void)           
 {
-    int word;
-    word = getc(stdin);//等待用户输入或从缓存中读一个字符
-    return word;
+	int c = 0;
+
+    // please impl user get char api 
+
+	return c;
 }
+

@@ -12,7 +12,7 @@ typedef long (*syscall_func)(void);
 #ifdef FINSH_USING_SYMTAB
 #ifdef FINSH_USING_DESCRIPTION
 #ifdef _MSC_VER
-#define MSH_FUNCTION_EXPORT_CMD(name, cmd, desc)      \
+#define SHELL_FUNCTION_EXPORT_CMD(name, cmd, desc)      \
                 const char __fsym_##cmd##_name[] = #cmd;            \
                 const char __fsym_##cmd##_desc[] = #desc;           \
                 __declspec(allocate("FSymTab$f"))                   \
@@ -25,10 +25,10 @@ typedef long (*syscall_func)(void);
 #pragma comment(linker, "/merge:FSymTab=mytext")
 
 #else
-#define MSH_FUNCTION_EXPORT_CMD(name, cmd, desc)                      \
-                const char __fsym_##cmd##_name[] rt_section(".rodata.name") = #cmd;    \
-                const char __fsym_##cmd##_desc[] rt_section(".rodata.name") = #desc;   \
-                rt_used const struct finsh_syscall __fsym_##cmd rt_section("FSymTab")= \
+#define SHELL_FUNCTION_EXPORT_CMD(name, cmd, desc)                      \
+                const char __fsym_##cmd##_name[] sh_section(".rodata.name") = #cmd;    \
+                const char __fsym_##cmd##_desc[] sh_section(".rodata.name") = #desc;   \
+                sh_used const struct finsh_syscall __fsym_##cmd sh_section("FSymTab")= \
                 {                           \
                     __fsym_##cmd##_name,    \
                     __fsym_##cmd##_desc,    \
@@ -38,7 +38,7 @@ typedef long (*syscall_func)(void);
 #endif
 #else
 #ifdef _MSC_VER
-#define MSH_FUNCTION_EXPORT_CMD(name, cmd, desc)      \
+#define SHELL_FUNCTION_EXPORT_CMD(name, cmd, desc)      \
                 const char __fsym_##cmd##_name[] = #cmd;            \
                 __declspec(allocate("FSymTab$f"))                   \
                 const struct finsh_syscall __fsym_##cmd =           \
@@ -49,9 +49,9 @@ typedef long (*syscall_func)(void);
 #pragma comment(linker, "/merge:FSymTab=mytext")
 
 #else
-#define MSH_FUNCTION_EXPORT_CMD(name, cmd, desc)                      \
+#define SHELL_FUNCTION_EXPORT_CMD(name, cmd, desc)                      \
                 const char __fsym_##cmd##_name[] = #cmd;                            \
-                rt_used const struct finsh_syscall __fsym_##cmd rt_section("FSymTab")= \
+                sh_used const struct finsh_syscall __fsym_##cmd sh_section("FSymTab")= \
                 {                                                                   \
                     __fsym_##cmd##_name,                                            \
                     (syscall_func)&name                                             \
@@ -90,8 +90,8 @@ typedef long (*syscall_func)(void);
  * @param command is the name of the command.
  * @param desc is the description of the command, which will show in help list.
  */
-#define MSH_CMD_EXPORT(command, desc)   \
-    MSH_FUNCTION_EXPORT_CMD(command, command, desc)
+#define SHELL_CMD_EXPORT(command, desc)   \
+    SHELL_FUNCTION_EXPORT_CMD(command, command, desc)
 
 /**
  * @ingroup msh
@@ -102,8 +102,8 @@ typedef long (*syscall_func)(void);
  * @param alias is the alias of the command.
  * @param desc is the description of the command, which will show in help list.
  */
-#define MSH_CMD_EXPORT_ALIAS(command, alias, desc)  \
-    MSH_FUNCTION_EXPORT_CMD(command, alias, desc)
+#define SHELL_CMD_EXPORT_ALIAS(command, alias, desc)  \
+    SHELL_FUNCTION_EXPORT_CMD(command, alias, desc)
 
 /* system call table */
 struct finsh_syscall
@@ -135,7 +135,7 @@ extern struct finsh_syscall *_syscall_table_begin, *_syscall_table_end;
 /* find out system call, which should be implemented in user program */
 struct finsh_syscall *finsh_syscall_lookup(const char *name);
 
-#if !defined(RT_USING_POSIX_STDIO) && defined(RT_USING_DEVICE)
+#if !defined(SH_USING_POSIX_STDIO) && defined(SH_USING_DEVICE)
 void finsh_set_device(const char *device_name);
 #endif
 
