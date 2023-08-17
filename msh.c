@@ -31,7 +31,7 @@ int msh_help(int argc, char **argv)
 #if defined(FINSH_USING_DESCRIPTION) && defined(FINSH_USING_SYMTAB)
             sh_kprintf("%-16s - %s\n", index->name, index->desc);
 #else
-            sh_kprintf("%s ", index->name);
+            sh_kprintf("%s\n", index->name);
 #endif
         }
     }
