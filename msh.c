@@ -39,7 +39,7 @@ int msh_help(int argc, char **argv)
 
     return 0;
 }
-SHELL_CMD_EXPORT_ALIAS(msh_help, help, RT-Thread shell help.);
+SHELL_CMD_EXPORT_ALIAS(msh_help, help, shell help.);
 
 static int msh_split(char *cmd, sh_size_t length, char *argv[FINSH_ARG_MAX])
 {

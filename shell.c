@@ -424,7 +424,6 @@ void shell_thread_entry(void *parameter)
         }
     }
 #endif /* !defined(SH_USING_POSIX_STDIO) && defined(SH_USING_DEVICE) */
-
 #ifdef FINSH_USING_AUTH
     /* set the default password when the password isn't setting */
     if (sh_strlen(finsh_get_password()) == 0)
@@ -437,17 +436,14 @@ void shell_thread_entry(void *parameter)
     /* waiting authenticate success */
     finsh_wait_auth();
 #endif
-
     sh_kprintf(FINSH_PROMPT);
 
-    while (1)
-    {
+    do {
         ch = (int)finsh_getchar();
         if (ch < 0)
         {
             continue;
         }
-
         /*
          * handle control key
          * up key  : 0x1b 0x5b 0x41
@@ -641,7 +637,7 @@ void shell_thread_entry(void *parameter)
             shell->line_position = 0;
             shell->line_curpos = 0;
         }
-    } /* end of device read */
+    } while(1); /* end of device read */
 }
 
 void finsh_system_function_init(const void *begin, const void *end)
@@ -746,6 +742,9 @@ int shell_system_init(void)
 
     // if (tid != NULL && result == SH_EOK) //TODO
     //     sh_thread_startup(tid);  
+
+    // sh_kprintf(FINSH_PROMPT);
+
     return 0;
 }
 

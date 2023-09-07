@@ -82,6 +82,9 @@ sh_uint32_t finsh_get_echo(void);
 
 int shell_system_init(void);
 void shell_thread_entry(void *parameter);
+
+void shell_printf(const char* fmt,...);
+
 const char *finsh_get_device(void);
 int finsh_getchar(void);
 
